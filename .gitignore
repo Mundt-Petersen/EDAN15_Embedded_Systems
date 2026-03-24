@@ -1,0 +1,3 @@
+lab*/**
+!lab*/src/
+!lab*/src/**
