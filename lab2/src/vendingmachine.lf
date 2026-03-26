@@ -1,0 +1,139 @@
+target C
+
+import Input, Output from "vm_extra.lf"
+
+reactor Machine(stock: int[] = {2, 2, 2}) {
+  preamble {=
+    #define IDLE 0
+    #define SELECTED 1
+    #define PAYED 2
+  =}
+
+  input coin: bool
+  input selection: int
+  input cancel: bool
+
+  output drink: int
+  output change: bool
+
+  state machine_state: int = 0
+  state drink_choice: int = 0
+
+  reaction(startup) {=
+    printf("Vending machine started. Press enter to begin.\n");
+  =}
+
+  reaction(coin, selection, cancel) -> drink, change {=
+    switch(self -> machine_state){
+
+        case IDLE:
+            if(coin -> is_present){
+                printf("Deposited 1 coin.\n");
+                self -> machine_state = PAYED;
+            }
+            if(selection -> is_present){
+                self -> drink_choice = selection -> value;
+                 if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                    printf("Invalid drink selection. Choose again.\n");
+                    self -> machine_state = IDLE;
+                }
+                else{
+                self -> drink_choice = selection -> value;
+                printf("Selected drink %d.\n", selection -> value);
+                self -> machine_state = SELECTED;
+            }
+        }
+            if(cancel -> is_present){
+                printf("Cancelled.\n");
+                self -> machine_state = IDLE;
+                }
+            break;
+
+        case SELECTED:
+            printf("You have made a selection\n");
+            if(coin -> is_present){
+                self -> drink_choice = selection -> value;
+
+                    printf("Trying to deploy drink %d.\n", self -> drink_choice);
+                    if(self -> stock[self -> drink_choice] >= 1){
+                        self -> stock[self -> drink_choice]--;
+                        printf("Success! There are %d left of this drink.\n", self -> stock[self -> drink_choice]);
+                        self -> machine_state = IDLE;
+                        lf_set(drink, self -> drink_choice);
+                    }
+                    else{
+                        printf("Drink out of stock. Choose again.\n");
+                        self -> machine_state = PAYED;
+                        self -> drink_choice = 0;
+
+                }
+            }
+            if(selection -> is_present){//choice updated
+                self -> drink_choice = selection -> value;
+                 if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                    printf("Invalid drink selection. Choose again.\n");
+                    self -> machine_state = IDLE;
+                }
+                else{
+                    printf("Selection changed to drink %d\n", self -> drink_choice);
+                    self -> machine_state = SELECTED;
+                }
+                    if(cancel -> is_present){
+                        printf("Cancelled selection.\n");
+                        self -> machine_state = IDLE;
+                        self -> drink_choice = 0;
+                    }
+        }
+            break;
+
+        case PAYED:
+            //printf("You have deposited a coin.\n");
+            if(coin -> is_present){
+                printf("Overpay! Change will be returned.\n");
+                self -> machine_state = PAYED;
+                lf_set(change, true);
+            }
+            if(selection -> is_present){
+                self -> drink_choice = selection -> value;
+                 if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                    printf("Invalid drink selection. Choose again.\n");
+                    self -> machine_state = IDLE;
+                }
+                else{
+                self -> drink_choice = selection -> value;
+                printf("Trying to deploy drink %d.\n", selection -> value);
+                if(self -> stock[self -> drink_choice] >= 1){
+                    self -> stock[self -> drink_choice]--;
+                    printf("Success! There are %d left of this drink.\n", self -> stock[self -> drink_choice]);
+                    self -> machine_state = IDLE;
+                    lf_set(drink, selection -> value);
+                }
+                else{
+                    printf("Drink out of stock. Returning change.\n");
+                    self -> machine_state = IDLE;
+                    lf_set(change, true);
+                }
+            }
+        }
+            if(cancel -> is_present){
+                printf("Cancelled selection. Change will be returned.\n");
+                self -> machine_state = IDLE;
+                lf_set(change, true);
+            }
+            break;
+    }
+  =}
+}
+
+main reactor {
+  Input = new Input()
+  Output = new Output()
+  Machine = new Machine()
+
+  Input.coin -> Machine.coin
+  Input.sel -> Machine.selection
+  Input.cancel -> Machine.cancel
+
+  Machine.change -> Output.change
+  Machine.drink -> Output.beverage
+}
