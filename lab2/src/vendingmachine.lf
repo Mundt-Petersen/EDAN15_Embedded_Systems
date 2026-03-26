@@ -34,7 +34,7 @@ reactor Machine(stock: int[] = {2, 2, 2}) {
             if(selection -> is_present){
                 self -> drink_choice = selection -> value;
                  if(self -> drink_choice > 2 || self -> drink_choice < 0){
-                    printf("Invalid drink selection. Choose again.\n");
+                    printf("Invalid drink selection. Choose again.IDLSEL\n");
                     self -> machine_state = IDLE;
                 }
                 else{
@@ -50,7 +50,6 @@ reactor Machine(stock: int[] = {2, 2, 2}) {
             break;
 
         case SELECTED:
-            printf("You have made a selection\n");
             if(coin -> is_present){
                 self -> drink_choice = selection -> value;
 
@@ -71,19 +70,19 @@ reactor Machine(stock: int[] = {2, 2, 2}) {
             if(selection -> is_present){//choice updated
                 self -> drink_choice = selection -> value;
                  if(self -> drink_choice > 2 || self -> drink_choice < 0){
-                    printf("Invalid drink selection. Choose again.\n");
+                    printf("Invalid drink selection. Choose again.SELSEL\n");
                     self -> machine_state = IDLE;
                 }
                 else{
                     printf("Selection changed to drink %d\n", self -> drink_choice);
                     self -> machine_state = SELECTED;
                 }
-                    if(cancel -> is_present){
-                        printf("Cancelled selection.\n");
-                        self -> machine_state = IDLE;
-                        self -> drink_choice = 0;
-                    }
-        }
+            }
+            if(cancel -> is_present){
+                printf("Cancelled selection.\n");
+                self -> machine_state = IDLE;
+                self -> drink_choice = 0;
+            }
             break;
 
         case PAYED:
@@ -96,7 +95,8 @@ reactor Machine(stock: int[] = {2, 2, 2}) {
             if(selection -> is_present){
                 self -> drink_choice = selection -> value;
                  if(self -> drink_choice > 2 || self -> drink_choice < 0){
-                    printf("Invalid drink selection. Choose again.\n");
+                    printf("Invalid drink selection. Choose again. Returning change.\n");
+                    lf_set(change, true);
                     self -> machine_state = IDLE;
                 }
                 else{
