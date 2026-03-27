@@ -1,0 +1,231 @@
+target C
+
+import Input, Output from "vm_extra.lf"
+
+reactor Machine(stock: int[] = {2, 2, 2}) {
+  preamble {=
+    #define IDLE 0
+    #define SELECTED 1
+    #define PAYED 2
+    char buf[300];
+  =}
+  input coin: bool
+  input selection: int
+  input cancel: bool
+  input display_off: bool
+  output drink: int
+  output change: bool
+  output text: string
+  state machine_state: int = 0
+  state drink_choice: int = 0
+  state display_off: bool = true
+  state action_id: int = 0
+  logical action a: int
+
+  initial mode Off{
+    reaction(coin, selection, cancel) -> text, On {=
+        sprintf(buf, "Powering on.\n");
+        lf_set(text, buf);
+        lf_set_mode(On);
+        self -> display_off = false;
+        self -> machine_state = IDLE;
+        =}
+  }
+  mode On{
+      
+      reaction(startup) -> text, a {=
+        sprintf(buf, "Vending machine started. Press enter to begin.\n");
+        lf_set(text, buf);
+    =}
+
+reaction(coin, selection, cancel) -> drink, change, text, a {=
+    self -> action_id++;
+
+    switch(self -> machine_state){        
+
+        
+        case IDLE:
+        if(coin -> is_present){
+            sprintf(buf, "Deposited 1 coin.\n");
+            lf_set(text, buf);
+            self -> machine_state = PAYED;
+            
+        }
+        if(selection -> is_present){
+            self -> drink_choice = selection -> value;
+            if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                sprintf(buf, "Invalid drink selection. Choose again.\n");
+                lf_set(text, buf);
+                self -> machine_state = IDLE;
+            }
+            else{
+                self -> drink_choice = selection -> value;
+                sprintf(buf, "Selected drink %d.\n", selection -> value);
+                lf_set(text, buf);
+                self -> machine_state = SELECTED;
+            }
+        }
+        if(cancel -> is_present){
+            sprintf(buf, "Cancelled.\n");
+            lf_set(text, buf);
+            self -> machine_state = IDLE;
+        }
+            
+            break;
+
+            case SELECTED:
+            if(coin -> is_present){
+                sprintf(buf, "Trying to deploy drink %d.\n", self -> drink_choice);
+                lf_set(text, buf);
+                if(self -> stock[self -> drink_choice] >= 1){
+                    self -> stock[self -> drink_choice]--;
+                    sprintf(buf, "Success! There are %d left of this drink.\n", self -> stock[self -> drink_choice]);
+                    lf_set(text, buf);
+                    self -> machine_state = IDLE;
+                    lf_set(drink, self -> drink_choice);
+                }
+                else{
+                    sprintf(buf, "Drink out of stock. Choose again.\n");
+                    lf_set(text, buf);
+                    self -> machine_state = PAYED;
+                    self -> drink_choice = 0;
+
+                }
+            }
+            if(selection -> is_present){//choice updated
+                self -> drink_choice = selection -> value;
+                if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                    sprintf(buf, "Invalid drink selection. Choose again.\n");
+                    lf_set(text, buf);
+                    self -> machine_state = IDLE;
+                }
+                else{
+                    sprintf(buf, "Selection changed to drink %d\n", self -> drink_choice);
+                    lf_set(text, buf);
+                    self -> machine_state = SELECTED;
+                }
+            }
+            if(cancel -> is_present){
+                sprintf(buf, "Cancelled selection.\n");
+                lf_set(text, buf);
+                self -> machine_state = IDLE;
+                self -> drink_choice = 0;
+            }
+            break;
+
+            case PAYED:
+            if(coin -> is_present){
+                sprintf(buf, "Overpay! Change will be returned.\n");
+                lf_set(text, buf);
+                self -> machine_state = PAYED;
+                lf_set(change, true);
+            }
+            if(selection -> is_present){
+                self -> drink_choice = selection -> value;
+                if(self -> drink_choice > 2 || self -> drink_choice < 0){
+                    sprintf(buf, "Invalid drink selection. Choose again.\n");
+                    lf_set(text, buf);
+                    self -> machine_state = IDLE;
+                }
+                else{
+                    self -> drink_choice = selection -> value;
+                    sprintf(buf, "Trying to deploy drink %d.\n", selection -> value);
+                    lf_set(text, buf);
+                    if(self -> stock[self -> drink_choice] >= 1){
+                    self -> stock[self -> drink_choice]--;
+                    sprintf(buf, "Success! There are %d left of this drink.\n", self -> stock[self -> drink_choice]);
+                    lf_set(text, buf);
+                    self -> machine_state = IDLE;
+                    lf_set(drink, selection -> value);
+                }
+                else{
+                    sprintf(buf, "Drink out of stock. Returning change.\n");
+                    lf_set(text, buf);
+                    self -> machine_state = IDLE;
+                    lf_set(change, true);
+                }
+            }
+        }
+        if(cancel -> is_present){
+            sprintf(buf, "Cancelled selection. Change will be returned.\n");
+            lf_set(text, buf);
+            self -> machine_state = IDLE;
+            lf_set(change, true);
+        }
+        break;
+    }
+    =}
+
+    reaction(display_off) -> change, text, a{=
+        self -> action_id++;
+        lf_schedule_int(a, SECS(10), self -> action_id);//schedule shutdown in 60 secs
+
+        if(self -> machine_state == PAYED){
+            lf_set(change, true);
+            sprintf(buf, "Returning change.\n");
+            lf_set(text, buf);
+        }
+        self -> machine_state = IDLE;
+        =}
+    reaction(a) -> text, Off{=
+    if(a-> value == self -> action_id){
+        sprintf(buf, "Powering down machine.\n");
+        lf_set(text, buf);
+        lf_set_mode(Off);
+        self -> display_off = true;
+    }
+        =}
+}
+}
+
+reactor Display {
+    input text: string
+    output display_off: bool
+    state timer_count:int
+    state display_mode: bool
+    state display_off: bool
+    timer t(0, 1 sec)
+
+
+  reaction(text) {=
+    printf("%s", text -> value);
+    fflush(stdout);
+    self -> display_mode = true;
+    self -> timer_count = 0;
+  =}
+
+  reaction(t) -> display_off{=
+    if(self -> timer_count >= 5){//display timeout
+        if(self -> display_mode == true){//if screen is on and untouched for 5s, turn it off
+            lf_set(display_off, true);
+            self -> display_mode = false;
+            printf("Turning off display.\n");
+        }
+        self -> timer_count = 0;
+    }
+    else{
+        self -> timer_count++;
+    }
+    
+    =}
+
+
+}
+
+main reactor {
+  Input = new Input()
+  Output = new Output()
+  Machine = new Machine()
+  Display = new Display()
+
+  Input.coin -> Machine.coin
+  Input.sel -> Machine.selection
+  Input.cancel -> Machine.cancel
+
+  Machine.change -> Output.change
+  Machine.drink -> Output.beverage
+
+  Machine.text -> Display.text
+
+  Display.display_off -> Machine.display_off after 0
+}

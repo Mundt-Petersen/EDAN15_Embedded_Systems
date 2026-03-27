@@ -1,0 +1,71 @@
+target C
+
+reactor Output {
+    input change:bool
+    input beverage:int
+
+    reaction(beverage) {=
+        printf("[OUTPUT] Got a can of %d\n",beverage->value);
+    =}
+
+    reaction(change) {=
+        printf("[OUTPUT] Got the coin back.\n");
+    =}
+}
+
+reactor Input {
+    preamble {=
+        void clearInputBuffer()
+        {   char c = 0;
+            do {
+                c = getchar(); 
+            } while (c != '\n' && c != EOF);
+        }
+        char getInput()
+        {   char c = 0;
+            do {
+                putchar('>');
+                c = getchar(); 
+            } while (c == '\n');
+            return c;
+        }
+        void* external(void* a) {
+            while (true) {
+                clearInputBuffer();
+                char c = getInput();
+                lf_schedule_int(a, 0, c);
+            }
+        }
+    =}
+    output cancel:bool
+    output sel:int
+    output coin:bool
+
+    state thread_id: lf_thread_t = 0
+    physical action a: int
+  
+    reaction(startup) -> a {=
+      // Start a thread to schedule physical actions.
+      lf_thread_create(&self->thread_id, &external, a);
+    =}
+
+    reaction(a) -> cancel, sel, coin {=
+        char c = a->value;
+        switch(c) {
+            case 'c': // insert coin
+                lf_set(coin, true);
+                break;
+            case 'x': // cancel
+                lf_set(cancel, true);
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+                lf_set(sel, c-'0');
+                break;
+            default:
+                break;
+        }
+    =}
+}
