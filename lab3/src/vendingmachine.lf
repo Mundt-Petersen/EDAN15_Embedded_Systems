@@ -157,9 +157,10 @@ reaction(coin, selection, cancel) -> drink, change, text, a {=
     =}
 
     reaction(display_off) -> change, text, a{=
+
         self -> action_id++;
         lf_schedule_int(a, SECS(10), self -> action_id);//schedule shutdown in 60 secs
-
+            
         if(self -> machine_state == PAYED){
             lf_set(change, true);
             sprintf(buf, "Returning change.\n");
@@ -167,12 +168,12 @@ reaction(coin, selection, cancel) -> drink, change, text, a {=
         }
         self -> machine_state = IDLE;
         =}
+
     reaction(a) -> text, Off{=
     if(a-> value == self -> action_id){
         sprintf(buf, "Powering down machine.\n");
         lf_set(text, buf);
         lf_set_mode(Off);
-        self -> display_off = true;
     }
         =}
 }
@@ -183,19 +184,22 @@ reactor Display {
     output display_off: bool
     state timer_count:int
     state display_mode: bool
-    state display_off: bool
     timer t(0, 1 sec)
 
 
   reaction(text) {=
     printf("%s", text -> value);
     fflush(stdout);
+    if (strstr(text->value, "Powering down machine.") != NULL) {
+        self -> display_mode = false;
+        return;
+    }
     self -> display_mode = true;
     self -> timer_count = 0;
   =}
 
   reaction(t) -> display_off{=
-    if(self -> timer_count >= 5){//display timeout
+    if(self -> timer_count == 5){//display timeout
         if(self -> display_mode == true){//if screen is on and untouched for 5s, turn it off
             lf_set(display_off, true);
             self -> display_mode = false;
