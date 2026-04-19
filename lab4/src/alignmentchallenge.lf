@@ -1,0 +1,26 @@
+target C
+
+main reactor {
+    state x: int = 0;
+    timer t1(0, 20 msec);
+    timer t2(0, 200 msec);
+    timer t3(0, 400 msec);
+
+    reaction(t1) {=
+        self->x++;
+    =}
+
+    reaction(t2) {=
+        self->x = self->x - 10;
+    =}
+
+    reaction(t3) {=
+        printf("Result:%d\n", self->x);
+    =}
+
+}
+
+// Should allways print 0, but gets -9 since t3 is last in progam (0 + 1 - 10 happends just before print).
+
+// Compile: lfc alignmentchallenge.lf
+// Run: ../bin/alignmentchallenge

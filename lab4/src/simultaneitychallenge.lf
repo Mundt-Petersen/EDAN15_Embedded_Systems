@@ -1,0 +1,79 @@
+target C;
+
+preamble {=
+    #include <stdlib.h>
+    #include <time.h>
+    #include <unistd.h>
+
+    typedef enum { Bread=0, Cheese=1, Ham=2 } Ingredient;
+=}
+
+main reactor {
+    a = new Supplier();
+    s1 = new Student(has = {= Bread =} );
+    s2 = new Student(has = {= Cheese =} );
+    s3 = new Student(has = {= Ham =} );
+
+    (a.bread)+ -> s1.bread, s2.bread, s3.bread;
+    (a.cheese)+ -> s1.cheese, s2.cheese, s3.cheese;
+    (a.ham)+ -> s1.ham, s2.ham, s3.ham;
+    s1.done,s2.done,s3.done -> a.trigger after 1 sec;
+
+}
+
+reactor Supplier {
+    input trigger: bool;
+    output bread: bool;
+    output cheese: bool;
+    output ham: bool;
+
+    reaction (startup) -> bread, cheese, ham {=
+        Ingredient item1 = rand() % 3;
+        Ingredient item2 = rand() % 3;
+        while (item2 == item1) {
+            item2 = rand() % 3;
+        }
+
+        if (item1 == Bread || item2 == Bread) lf_set(bread, true);
+        if (item1 == Cheese || item2 == Cheese) lf_set(cheese, true);
+        if (item1 == Ham || item2 == Ham) lf_set(ham, true);
+
+        printf("Supplier sends: %d and %d -> ", item1, item2);
+    =}
+
+    reaction (trigger) -> bread, cheese, ham {=
+        Ingredient item1 = rand() % 3;
+        Ingredient item2 = rand() % 3;
+        while (item2 == item1) {
+            item2 = rand() % 3;
+        }
+
+        if (item1 == Bread || item2 == Bread) lf_set(bread, true);
+        if (item1 == Cheese || item2 == Cheese) lf_set(cheese, true);
+        if (item1 == Ham || item2 == Ham) lf_set(ham, true);
+
+        printf("Supplier sends: %d and %d -> ", item1, item2);
+    =}
+
+}
+
+reactor Student (has: Ingredient = {= Bread =}) {
+    input bread: bool;
+    input cheese: bool;
+    input ham: bool;
+    output done: bool;
+
+    reaction (bread, cheese, ham) -> done {=
+        if (self->has == Bread && cheese->is_present && ham->is_present) printf("s1 has eaten.\n");
+        else if (self->has == Cheese && bread->is_present && ham->is_present) printf("s2 has eaten.\n");
+        else if (self->has == Ham && bread->is_present && cheese->is_present) printf("s3 has eaten.\n");
+
+        lf_set(done, true);
+    =}
+
+}
+
+// See C file for answers.
+
+// Compile: lfc simultaneitychallenge.lf
+// Run: ../bin/simultaneitychallenge
