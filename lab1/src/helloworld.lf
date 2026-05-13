@@ -20,9 +20,9 @@ reaction(startup) {=
     =}
 }
 
-  reactor Source{
+reactor Source{
     output out: string;
-    timer t(0,1 secs);
+    timer t(0, 1 secs);
     reaction(t) -> out {=
       lf_set(out, "king");
       printf("Elapsed time is %ld seconds.\n", lf_time_logical_elapsed()/1000000000);//fult
