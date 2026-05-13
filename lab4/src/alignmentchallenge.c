@@ -57,7 +57,7 @@ int main() {
     return 0;
 }
 
-// Compared to LF this is concurrent and non-dterminisic. Each cycle gives around +-0 but the race conditions cause drift over time.
+// Compared to LF this is concurrent and non-determinisic. Each cycle gives around +-0 but the race conditions cause drift over time.
 
 // I think LF is easier to read bcs it is shorter and has less "fill". This one needs locks bcs otherwise the different threads would try to change x at the same time.
 
